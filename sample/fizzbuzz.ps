@@ -1,0 +1,12 @@
+1 1 100{
+    dup 3 mod 0 eq dup{
+	(Fizz) print
+    }if
+    1 index 5 mod 0 eq dup{
+	(Buzz) print
+    }if
+    or{
+	pop()
+    }if
+    =
+}for

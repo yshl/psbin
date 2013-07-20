@@ -1,0 +1,220 @@
+#!/bin/sh
+exec gs -q -dNODISPLAY -dBATCH -d#!='{2{currentfile 256 string readline{pop}if}repeat}' -- $0 "$@"
+
+ARGUMENTS length 0 eq{
+    (%stdin)
+}{
+    ARGUMENTS 0 get
+}ifelse
+(r)file /infile exch def
+
+/tobinmethods 9 dict def
+tobinmethods begin
+
+    /SystemNames where{
+        pop
+        SystemNames 0 226 getinterval
+    }{
+        [
+            0 1 225{
+                (\222 )dup 1 4 3 roll put
+                token{exch pop}if
+            }for
+        ]
+    }ifelse /list exch def
+
+    /bindict list length 6 add dict def
+
+    0 1 list length 1 sub{
+        /i exch def
+        bindict
+        list i get
+        2 string dup 0 146 put
+        dup 1 i put
+        put
+    }for
+    bindict /true (\215\1) put
+    bindict /false (\215\0) put
+    [([)(])(<<)(>>)]{
+        bindict exch dup cvn exch put
+    }forall
+
+    %bindict{exch =only ==}forall
+
+    /alnum? false def
+    /inttobin{
+        2 dict begin
+            /n exch def
+            n -128 ge n 128 lt and{
+                2 string
+                dup 0 136 put
+            }{
+            n -32768 ge n 32768 lt and{
+                3 string
+                dup 0 135 put
+            }{
+                5 string
+                dup 0 133 put
+            }ifelse
+            }ifelse
+            /buf exch def
+            1 1 buf length 1 sub{
+                buf exch
+                n 1 index 1 sub -8 mul bitshift 255 and
+                put
+            }for
+            buf
+        end
+    }def
+    /floattobin{
+        5 dict begin
+    	dup 0. eq{
+    	    (\214\0\0\0\0)
+    	}{
+    	    dup 0 gt{0}{neg 1}ifelse
+    	    /sign exch def
+    
+    	    dup ln 2 ln div floor cvi
+    	    2 copy 2 exch 1 add exp ge{1 add}if
+    	    dup -127 le{
+		/expon 0 def
+    		pop -126
+    	    }{
+    		/expon 1 index 127 add def
+    	    }ifelse
+    	    2 exch exp div
+    
+    	    128 mul dup cvi dup /frac1 exch 127 and def sub
+    	    256 mul dup cvi dup /frac2 exch def sub
+    	    256 mul dup cvi dup /frac3 exch def sub
+    	    pop
+
+    	    (\214    )
+    	    dup 1 frac3 put
+    	    dup 2 frac2 put
+    	    dup 3 frac1 expon 1 and 7 bitshift or put
+    	    dup 4 expon -1 bitshift sign 7 bitshift or put
+    	}ifelse
+        end
+    }def
+    /squeezerealstr{
+	4 dict begin
+	    /realstr exch def
+	    /slicetoend{
+		1 index length 1 index sub
+		getinterval
+	    }def
+
+	    realstr(e)search{
+		/signif exch def
+		pop
+		cvi 5 string cvs
+		/expon 1 index length 1 add string def
+		expon exch 1 exch putinterval
+		expon 0 (e) putinterval
+	    }{
+		/signif exch def
+		/expon () def
+	    }ifelse
+
+	    signif (0.) anchorsearch signif cvr 0.0 ne and{
+		pop pop
+		signif 1 slicetoend
+		/signif exch def
+	    }{
+		pop
+	    }ifelse
+	    signif (-0.) anchorsearch{
+		pop pop
+		signif length 1 sub string
+		dup 0 (-) putinterval
+		dup 1 signif 2 slicetoend putinterval
+		/signif exch def
+	    }{
+		pop
+	    }ifelse
+	    signif length 1 sub -1 1{
+		signif 1 index 1 getinterval (0) ne{
+		    signif 0 3 2 roll 1 add getinterval
+		    /signif exch def
+		    exit
+		}if
+		pop
+	    }for
+	    signif length expon length add string
+	    dup 0 signif putinterval
+	    dup signif length expon putinterval
+	end
+    }def
+
+    /stringtype{
+	tok length 256 lt{
+	    (\216 )dup 1 tok length put print
+	}{
+	    (\217  )dup 1 tok length 256 idiv put
+	    dup 2 tok length 256 mod put print
+	}ifelse
+	tok print
+	/alnum? false def
+    }def
+    /integertype{
+	tok 10 lt tok 0 ge and alnum? not and{
+	    tok =only
+	    /alnum? true def
+	}{
+	    tok inttobin print
+	    /alnum? false def
+	}ifelse
+    }def
+    /realtype{
+	tok 20 string cvs squeezerealstr
+
+	dup length 5 ge
+	1 index cvr tok ne or{
+	    pop
+	    tok floattobin print
+	    /alnum? false def
+	}{
+	    alnum?{( )print}if
+	    print
+	    /alnum? true def
+	}ifelse
+    }def
+    /nametype{
+	bindict /tok load known{
+	    bindict /tok load get
+	    /tok load xcheck{
+		print
+	    }{
+		(\221)print
+		1 1 getinterval print
+	    }ifelse
+	    /alnum? false def
+	}{
+	    /tok load xcheck alnum? and{
+		( )print
+	    }if
+	    /tok load ==only
+	    /alnum? true def
+	}ifelse
+    }def
+    /arraytype{
+	({)print
+	/alnum? false def
+	/tok load{tokentobin}forall
+        (})print
+	/alnum? false def
+    }def
+    /tokentobin{
+	/tok exch def
+	/tok load type exec
+    }def
+end
+%quit
+tobinmethods begin
+    {
+    infile token not{exit}if
+    tokentobin
+    %(%stdout)(w)file flush
+}loop
+end
