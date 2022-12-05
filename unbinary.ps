@@ -1,5 +1,5 @@
 #!/bin/sh
-exec gs -q -dNODISPLAY -dBATCH -d#!='{2{currentfile 256 string readline{pop}if}repeat}' -- $0 "$@"
+exec gs -q -dNODISPLAY -dBATCH -dNOSAFER -d#!='{2{currentfile 256 string readline{pop}if}repeat}' -- $0 "$@"
 ARGUMENTS length 0 eq{
     (%stdin)
 }{
